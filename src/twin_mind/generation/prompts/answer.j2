@@ -1,0 +1,11 @@
+<context>
+{% for c in chunks %}
+<chunk id="{{ c.chunk.id }}" source="{{ c.chunk.source.name }}"{% if c.chunk.section %} section="{{ c.chunk.section }}"{% endif %}>
+{{ c.chunk.text }}
+</chunk>
+{% endfor %}
+</context>
+
+Question: {{ question }}
+
+Answer (cite every claim with [chunk_id]; refuse if the context does not support an answer):

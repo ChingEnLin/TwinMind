@@ -1,0 +1,23 @@
+cases:
+  - question: What did Ching-En do at Virtonomy?
+    expected_sources:
+      - experience/virtonomy.md
+    should_refuse: false
+
+  - question: What is QueryPal and what tech stack does it use?
+    expected_sources:
+      - projects/querypal.md
+    should_refuse: false
+
+  - question: Where did Ching-En get his master's degree?
+    expected_sources:
+      - background.md
+    should_refuse: false
+
+  - question: What is the capital of France?
+    expected_sources: []
+    should_refuse: true
+
+  - question: What stocks does Ching-En own?
+    expected_sources: []
+    should_refuse: true
