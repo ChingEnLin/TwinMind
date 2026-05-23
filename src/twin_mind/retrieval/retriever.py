@@ -9,5 +9,10 @@ class Retriever:
         self.top_k = top_k
 
     def retrieve(self, query: str, k: int | None = None) -> list[ScoredChunk]:
-        [vec] = self.embedder.embed([query])
+        # Some embedders (e.g. BGE) need a query-side prefix for retrieval quality.
+        embed_q = getattr(self.embedder, "embed_queries", None)
+        if callable(embed_q):
+            [vec] = embed_q([query])
+        else:
+            [vec] = self.embedder.embed([query])
         return self.store.search(vec, k or self.top_k)

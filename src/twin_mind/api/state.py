@@ -16,14 +16,22 @@ class AppState:
         self._llm: LLMClient | None = None
         self._lock = Lock()
 
-    def ensure_index(self) -> Retriever:
+    def ensure_index(self, rebuild: bool = False) -> Retriever:
+        """Build (or reuse) the retriever.
+
+        If the configured vector store already has data and `rebuild` is False,
+        we skip re-ingestion — this is the persistence win in Phase 2.
+        """
         with self._lock:
-            if self.retriever is not None:
+            if self.retriever is not None and not rebuild:
                 return self.retriever
-            embedder = make_embedder("stub")
-            store = make_vectorstore("in_memory")
-            loader = LocalDocsLoader(settings.samples_path)
-            index_documents(loader.load(), embedder, store)
+            embedder = make_embedder(settings.EMBEDDER)
+            store = make_vectorstore(settings.VECTORSTORE)
+            if rebuild and hasattr(store, "reset"):
+                store.reset()
+            if len(store) == 0:
+                loader = LocalDocsLoader(settings.samples_path)
+                index_documents(loader.load(), embedder, store)
             self.retriever = Retriever(embedder, store, top_k=settings.TOP_K)
             return self.retriever
 

@@ -14,3 +14,5 @@ eval/reports/
 .DS_Store
 
 docs/
+.claude/
+.vscode/

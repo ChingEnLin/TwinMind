@@ -14,6 +14,22 @@ cases:
       - background.md
     should_refuse: false
 
+  # --- Phase 2: paraphrase cases (require a real semantic embedder) ---
+  - question: Tell me about Ching-En's graduate studies.
+    expected_sources:
+      - background.md
+    should_refuse: false
+
+  - question: How did he speed up the medical simulation workflow?
+    expected_sources:
+      - experience/virtonomy.md
+    should_refuse: false
+
+  - question: Has Ching-En built any text-to-SQL tools?
+    expected_sources:
+      - projects/querypal.md
+    should_refuse: false
+
   - question: What is the capital of France?
     expected_sources: []
     should_refuse: true

@@ -33,6 +33,9 @@ def _parse_sse(body: str) -> list[tuple[str, dict]]:
 def _isolate_state(monkeypatch, fake_llm, tmp_path):
     (tmp_path / "x.md").write_text("# Title\n\n## Role\n\nChing-En built an ingestion pipeline.\n")
     monkeypatch.setattr(settings, "SAMPLES_DIR", str(tmp_path))
+    # Keep contract tests fast and offline — never hit BGE or the persistent Chroma dir.
+    monkeypatch.setattr(settings, "EMBEDDER", "stub")
+    monkeypatch.setattr(settings, "VECTORSTORE", "in_memory")
     state.retriever = None
     state._llm = fake_llm
     yield
