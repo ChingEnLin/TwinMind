@@ -30,6 +30,20 @@ cases:
       - projects/querypal.md
     should_refuse: false
 
+  # --- Phase 3: GitHub-grounded + BM25-friendly cases ---
+  # These require `tm ingest --source all` to be run first.
+  - question: What technologies does QueryPal use?
+    expected_sources:
+      - ChingEnLin/QueryPal/README.md
+    should_refuse: false
+    requires_github: true
+
+  - question: Is there a repo called TwinMind?
+    expected_sources:
+      - ChingEnLin/TwinMind/README.md
+    should_refuse: false
+    requires_github: true
+
   - question: What is the capital of France?
     expected_sources: []
     should_refuse: true

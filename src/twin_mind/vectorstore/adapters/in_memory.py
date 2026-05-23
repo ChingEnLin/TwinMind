@@ -1,4 +1,5 @@
 import math
+from collections.abc import Iterable
 
 from twin_mind.models.document import Chunk
 from twin_mind.vectorstore.base import ScoredChunk
@@ -30,6 +31,9 @@ class InMemoryVectorStore:
         ]
         scored.sort(key=lambda s: s.score, reverse=True)
         return scored[:k]
+
+    def all_chunks(self) -> Iterable[Chunk]:
+        return list(self._chunks.values())
 
     def __len__(self) -> int:
         return len(self._chunks)

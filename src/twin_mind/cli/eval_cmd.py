@@ -21,8 +21,14 @@ def eval_cmd(
 
     async def run_all() -> int:
         passes = 0
+        skipped = 0
         for i, case in enumerate(cases, 1):
             res = await run_case(state, case)
+            if res.skipped:
+                typer.echo(f"[SKIP] {i}. {case.question}")
+                typer.echo(f"        reason: {res.reason}")
+                skipped += 1
+                continue
             mark = "PASS" if res.passed else "FAIL"
             typer.echo(f"[{mark}] {i}. {case.question}")
             typer.echo(f"        refused={res.refused} citations={res.citations}")
@@ -31,8 +37,9 @@ def eval_cmd(
                 typer.echo(f"        answer: {res.answer[:240]}")
             else:
                 passes += 1
-        typer.echo(f"\n{passes}/{len(cases)} passed")
-        return 0 if passes == len(cases) else 1
+        ran = len(cases) - skipped
+        typer.echo(f"\n{passes}/{ran} passed ({skipped} skipped)")
+        return 0 if passes == ran else 1
 
     code = asyncio.run(run_all())
     raise typer.Exit(code=code)

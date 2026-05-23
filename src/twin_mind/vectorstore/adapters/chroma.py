@@ -12,6 +12,7 @@ the in-memory store's cosine score.
 from __future__ import annotations
 
 import json
+from collections.abc import Iterable
 from pathlib import Path
 from typing import Any
 
@@ -119,6 +120,44 @@ class ChromaVectorStore:
             name=self.collection_name,
             metadata={"hnsw:space": "cosine"},
         )
+
+    def all_chunks(self) -> Iterable[Chunk]:
+        if self._collection.count() == 0:
+            return
+        # Paginate to avoid loading a huge collection into memory at once.
+        page_size = 500
+        offset = 0
+        while True:
+            res = self._collection.get(
+                limit=page_size,
+                offset=offset,
+                include=["documents", "metadatas"],
+            )
+            ids = res.get("ids") or []
+            if not ids:
+                return
+            docs = res.get("documents") or [""] * len(ids)
+            metas = res.get("metadatas") or [{}] * len(ids)
+            for cid, text, meta in zip(ids, docs, metas, strict=True):
+                meta = meta or {}
+                try:
+                    extra = json.loads(meta.get("metadata_json") or "{}")
+                except json.JSONDecodeError:
+                    extra = {}
+                yield Chunk(
+                    id=cid,
+                    doc_id=meta.get("doc_id") or "",
+                    source=Source(
+                        name=meta.get("source_name") or "",
+                        url=meta.get("source_url") or None,
+                    ),
+                    text=text or "",
+                    section=meta.get("section") or None,
+                    metadata=extra,
+                )
+            if len(ids) < page_size:
+                return
+            offset += page_size
 
     def __len__(self) -> int:
         return int(self._collection.count())

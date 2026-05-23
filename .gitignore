@@ -16,3 +16,5 @@ eval/reports/
 docs/
 .claude/
 .vscode/
+data/samples/private/
+notes/

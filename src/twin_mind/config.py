@@ -31,6 +31,21 @@ class Settings(BaseSettings):
     CHROMA_PATH: str = "data/processed/chroma"
     CHROMA_COLLECTION: str = "twin_mind"
 
+    # GitHub ingestion (Phase 3)
+    GITHUB_TOKEN: str = ""
+    GITHUB_USER: str = "ChingEnLin"
+    GITHUB_DENYLIST: list[str] = ["KuaMongous", "NoteyFit"]
+    GITHUB_INCLUDE_DOCS: bool = True
+
+    # Source used for the lazy server-boot ingest when the store is empty.
+    # Use "all" or "github" if you want the server to fetch on first boot.
+    BOOTSTRAP_SOURCE: str = "local"
+
+    # Hybrid retrieval (Phase 3)
+    RETRIEVAL_MODE: str = "hybrid"  # "vector" | "bm25" | "hybrid"
+    RRF_K: int = 60
+    HYBRID_PER_RETRIEVER_K: int = 20
+
     # Anthropic Haiku 4.5 pricing (USD per 1M tokens). Update if pricing changes.
     PRICE_INPUT_PER_MTOK: float = 1.00
     PRICE_OUTPUT_PER_MTOK: float = 5.00

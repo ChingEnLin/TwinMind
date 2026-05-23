@@ -14,6 +14,7 @@ class EvalCase:
     question: str
     expected_sources: list[str]
     should_refuse: bool
+    requires_github: bool = False
 
 
 @dataclass
@@ -24,6 +25,7 @@ class EvalResult:
     citations: list[str]
     passed: bool
     reason: str = ""
+    skipped: bool = False
 
 
 def load_cases(path: str | Path) -> list[EvalCase]:
@@ -35,6 +37,7 @@ def load_cases(path: str | Path) -> list[EvalCase]:
                 question=item["question"],
                 expected_sources=list(item.get("expected_sources") or []),
                 should_refuse=bool(item.get("should_refuse", False)),
+                requires_github=bool(item.get("requires_github", False)),
             )
         )
     return cases
@@ -42,6 +45,19 @@ def load_cases(path: str | Path) -> list[EvalCase]:
 
 async def run_case(state_obj: AppState, case: EvalCase) -> EvalResult:
     retriever = state_obj.ensure_index()
+    # Skip GitHub-dependent cases if the corpus doesn't contain any github/ chunks.
+    if case.requires_github:
+        has_github = any(c.id.startswith("github/") for c in retriever.store.all_chunks())
+        if not has_github:
+            return EvalResult(
+                case=case,
+                answer="",
+                refused=False,
+                citations=[],
+                passed=True,
+                reason="skipped: requires github ingest",
+                skipped=True,
+            )
     retrieved = retriever.retrieve(case.question)
     llm = state_obj.llm()
 
