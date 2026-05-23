@@ -62,9 +62,7 @@ class BM25Retriever:
             return []
         scores = self._bm25.get_scores(q_tokens)
         # Pair, sort desc, slice top-k.
-        ranked = sorted(
-            zip(self._chunks, scores, strict=True), key=lambda p: p[1], reverse=True
-        )
+        ranked = sorted(zip(self._chunks, scores, strict=True), key=lambda p: p[1], reverse=True)
         return [ScoredChunk(c, float(s)) for c, s in ranked[:k] if s > 0]
 
     def __len__(self) -> int:

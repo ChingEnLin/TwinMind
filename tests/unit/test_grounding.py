@@ -29,6 +29,28 @@ def test_enforce_grounding_recognises_refusal_text():
     assert reason == "out_of_corpus"
 
 
+def test_enforce_grounding_detects_ambiguous_query():
+    answer = (
+        "I don't have that in my notes. Your question 'kubernetes' is incomplete — "
+        "please ask what you'd like to know about Ching-En's Kubernetes experience."
+    )
+    _, refused, reason = enforce_grounding(answer)
+    assert refused is True
+    assert reason == "ambiguous_query"
+
+
+def test_enforce_grounding_clarification_phrasing():
+    answer = "I don't have that in my notes. Could you clarify what you'd like to know?"
+    _, _, reason = enforce_grounding(answer)
+    assert reason == "ambiguous_query"
+
+
+def test_enforce_grounding_plain_out_of_corpus_not_misclassified():
+    answer = "I don't have that in my notes. The context does not mention stocks."
+    _, _, reason = enforce_grounding(answer)
+    assert reason == "out_of_corpus"
+
+
 def test_build_citations_resolves_chunks():
     chunks = [
         ScoredChunk(

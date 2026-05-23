@@ -11,6 +11,8 @@ build/
 data/raw/
 data/processed/
 eval/reports/
+eval_baseline*.md
+eval_report.md
 .DS_Store
 
 docs/
