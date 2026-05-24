@@ -16,6 +16,7 @@ eval_report*.md
 .DS_Store
 
 .claude/
+portfolio-widget/HANDOVER.md
 .vscode/
 data/samples/private/
 notes/
