@@ -51,8 +51,21 @@ resource "google_storage_bucket" "content" {
   depends_on = [google_project_service.required]
 }
 
-# CI (deploy SA) needs to read objects to pull content into the image build.
+# CI (deploy SA) needs to read objects AND read bucket metadata —
+# `gcloud storage rsync` calls storage.buckets.get to discover bucket location
+# before listing. roles/storage.objectViewer covers only objects; the
+# legacy-named role is the modern least-privilege fit for "read everything in
+# this bucket including its metadata."
 resource "google_storage_bucket_iam_member" "deploy_reader" {
+  bucket = google_storage_bucket.content.name
+  role   = "roles/storage.legacyBucketReader"
+  member = "serviceAccount:${google_service_account.deploy.email}"
+}
+
+# Object-level read for the same SA. legacyBucketReader covers bucket.get +
+# objects.list, but not objects.get (download). Stacking objectViewer makes
+# the read-everything intent explicit.
+resource "google_storage_bucket_iam_member" "deploy_object_reader" {
   bucket = google_storage_bucket.content.name
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.deploy.email}"
