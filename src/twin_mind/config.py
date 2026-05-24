@@ -46,6 +46,12 @@ class Settings(BaseSettings):
     RRF_K: int = 60
     HYBRID_PER_RETRIEVER_K: int = 20
 
+    # Reranking (Phase 5)
+    RERANKER: str = "claude"  # "none" | "identity" | "cross_encoder" | "claude"
+    RERANKER_CANDIDATE_K: int = 20
+    CROSS_ENCODER_MODEL: str = "BAAI/bge-reranker-base"
+    CLAUDE_RERANK_MODEL: str = "claude-haiku-4-5-20251001"
+
     # Anthropic Haiku 4.5 pricing (USD per 1M tokens). Update if pricing changes.
     PRICE_INPUT_PER_MTOK: float = 1.00
     PRICE_OUTPUT_PER_MTOK: float = 5.00

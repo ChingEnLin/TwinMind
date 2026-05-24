@@ -33,14 +33,15 @@ Requires `ANTHROPIC_API_KEY` in `.env` (see `.env.example`).
 Layered pipeline with provider-pluggable adapters. Each layer has `base.py` (Protocol/dataclasses), `factory.py` (string-keyed selector), and `adapters/` (concrete implementations). Swapping providers means adding an adapter and a factory branch — no caller changes.
 
 ```
-ingestion → chunking → embeddings → vectorstore → retrieval → generation → api
+ingestion → chunking → embeddings → vectorstore → retrieval → reranker → generation → api
 ```
 
 - **ingestion** (`ingestion/local_docs.py`): walks `data/samples/`, yields `Document`s keyed by relative path.
 - **chunking** (`chunking/strategies.py`): paragraph splits on blank lines; attaches nearest `##` header as `section`. Headers are **stripped from each paragraph's leading lines** before the body check — otherwise a paragraph whose first line is `#` would be dropped, killing all retrieval. Don't reintroduce a naive `startswith("#")` filter.
 - **embeddings** (`embeddings/adapters/stub.py`): hash-based bag-of-words, dim=256, L2-normalized. Deterministic, no ML dependency.
 - **vectorstore** (`vectorstore/adapters/in_memory.py`): dict + cosine similarity. Single process, not persisted.
-- **retrieval** (`retrieval/retriever.py`): top-K from store via embedder.
+- **retrieval** (`retrieval/retriever.py`): top-K from store via embedder. `retrieval/hybrid.py` fuses vector + BM25 via RRF when `RETRIEVAL_MODE=hybrid` (default).
+- **reranker** (`retrieval/reranker/`): two-stage retrieve-then-rerank. `retrieval/reranked.py:RerankedRetriever` wraps any base retriever, fetches `RERANKER_CANDIDATE_K` candidates, reorders to `TOP_K`. Default `RERANKER=claude` — a single Haiku listwise call (`reranker/adapters/claude.py`) returns reordered chunk indices. Phase 5 eval comparison: claude rerank moved retrieval_recall 0.734 → 0.906 and refusal_correctness 0.773 → 0.944. Cross-encoder (BGE-base) was tested and *regressed* — do not assume reranking is automatic improvement.
 - **generation** (`generation/adapters/anthropic.py`): streams via `client.messages.stream`. Two prompt templates: `prompts/system.j2` (stable, cached) and `prompts/answer.j2` (per-request, NOT cached). Citations and grounding enforcement run **post-stream**.
 - **api** (`api/`): FastAPI app with SSE chat endpoint, CORS pinned to `ALLOWED_ORIGIN`, per-IP token-bucket rate limiter, request-id middleware, bearer auth.
 

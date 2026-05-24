@@ -8,17 +8,21 @@ from twin_mind.ingestion.factory import make_loaders_for
 from twin_mind.pipeline import index_documents
 from twin_mind.retrieval.bm25 import BM25Retriever
 from twin_mind.retrieval.hybrid import HybridRetriever
+from twin_mind.retrieval.reranked import RerankedRetriever
+from twin_mind.retrieval.reranker.factory import make_reranker
 from twin_mind.retrieval.retriever import Retriever
 from twin_mind.vectorstore.factory import make_vectorstore
 
 
 class AppState:
     def __init__(self) -> None:
-        self.retriever: Retriever | HybridRetriever | None = None
+        self.retriever: Retriever | HybridRetriever | RerankedRetriever | None = None
         self._llm: LLMClient | None = None
         self._lock = Lock()
 
-    def ensure_index(self, rebuild: bool = False) -> Retriever | HybridRetriever:
+    def ensure_index(
+        self, rebuild: bool = False
+    ) -> Retriever | HybridRetriever | RerankedRetriever:
         """Build (or reuse) the retriever.
 
         Behavior:
@@ -43,14 +47,24 @@ class AppState:
 
             mode = settings.RETRIEVAL_MODE
             if mode == "vector":
-                self.retriever = vector
+                base = vector
             elif mode == "bm25":
-                self.retriever = _BM25OnlyRetriever(
+                base = _BM25OnlyRetriever(
                     BM25Retriever(store.all_chunks()), store, top_k=settings.TOP_K
                 )
             else:  # "hybrid"
                 bm25 = BM25Retriever(store.all_chunks())
-                self.retriever = HybridRetriever(vector, bm25, top_k=settings.TOP_K)
+                base = HybridRetriever(vector, bm25, top_k=settings.TOP_K)
+
+            if settings.RERANKER != "none":
+                self.retriever = RerankedRetriever(
+                    base,
+                    make_reranker(settings.RERANKER),
+                    candidate_k=settings.RERANKER_CANDIDATE_K,
+                    top_k=settings.TOP_K,
+                )
+            else:
+                self.retriever = base
             return self.retriever
 
     def llm(self) -> LLMClient:
