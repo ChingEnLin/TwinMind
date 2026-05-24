@@ -36,6 +36,9 @@ def _isolate_state(monkeypatch, fake_llm, tmp_path):
     # Keep contract tests fast and offline — never hit BGE or the persistent Chroma dir.
     monkeypatch.setattr(settings, "EMBEDDER", "stub")
     monkeypatch.setattr(settings, "VECTORSTORE", "in_memory")
+    # Default reranker is "claude" which requires ANTHROPIC_API_KEY at construction
+    # time. Contract tests must run offline, so swap to identity.
+    monkeypatch.setattr(settings, "RERANKER", "identity")
     state.retriever = None
     state._llm = fake_llm
     yield

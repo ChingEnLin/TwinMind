@@ -25,10 +25,10 @@ The `--report` flag writes a markdown summary suitable for posting to a PR; CI d
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│ DATA LAYER          observe what happened, write nothing else      │
+│ DATA LAYER          observe what happened, write nothing else       │
 │                                                                     │
-│ src/twin_mind/eval/runner.py:run_case                              │
-│   ─▶ retrieves chunks, generates answer, enforces grounding,       │
+│ src/twin_mind/eval/runner.py:run_case                               │
+│   ─▶ retrieves chunks, generates answer, enforces grounding,        │
 │      returns an EvalResult containing observations only:            │
 │      retrieved, citations, refused, refusal_reason, answer text     │
 └─────────────────────────────────────────────────────────────────────┘
@@ -37,24 +37,24 @@ The `--report` flag writes a markdown summary suitable for posting to a PR; CI d
 ┌─────────────────────────────────────────────────────────────────────┐
 │ METRIC LAYER        apply a definition of "good" to observations    │
 │                                                                     │
-│ src/twin_mind/eval/metrics/                                        │
-│   retrieval.py        retrieval_recall@K     (objective)           │
-│   citation.py         citation_precision     (objective)           │
-│   refusal.py          refusal_correct        (objective)           │
-│   groundedness.py     answer_faithfulness    (Haiku-as-judge)      │
+│ src/twin_mind/eval/metrics/                                         │
+│   retrieval.py        retrieval_recall@K     (objective)            │
+│   citation.py         citation_precision     (objective)            │
+│   refusal.py          refusal_correct        (objective)            │
+│   groundedness.py     answer_faithfulness    (Haiku-as-judge)       │
 │                                                                     │
-│   Each is a pure function over EvalResult — no I/O, no LLM calls   │
+│   Each is a pure function over EvalResult — no I/O, no LLM calls    │
 │   (except groundedness, which uses Haiku as judge).                 │
 └─────────────────────────────────────────────────────────────────────┘
                                   │
                                   ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│ REPORTING LAYER     aggregate scores into something humans read    │
+│ REPORTING LAYER     aggregate scores into something humans read     │
 │                                                                     │
-│ src/twin_mind/cli/eval_cmd.py:_print_summary, _render_markdown     │
-│   ─▶ per-metric scores (with N filtering for None values)          │
-│   ─▶ per-category breakdown                                        │
-│   ─▶ pass/fail per case + reasons                                  │
+│ src/twin_mind/cli/eval_cmd.py:_print_summary, _render_markdown      │
+│   ─▶ per-metric scores (with N filtering for None values)           │
+│   ─▶ per-category breakdown                                         │
+│   ─▶ pass/fail per case + reasons                                   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 

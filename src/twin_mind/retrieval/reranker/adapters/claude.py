@@ -122,7 +122,6 @@ class ClaudeReranker:
         # consumers that care about ordering see a monotonic sequence.
         n = len(order)
         reordered = [
-            ScoredChunk(candidates[idx].chunk, float(n - rank))
-            for rank, idx in enumerate(order)
+            ScoredChunk(candidates[idx].chunk, float(n - rank)) for rank, idx in enumerate(order)
         ]
         return reordered[:k]
