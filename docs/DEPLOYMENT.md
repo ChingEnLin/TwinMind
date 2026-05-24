@@ -179,7 +179,7 @@ COPY src ./src
 COPY data ./data
 RUN uv sync --frozen --no-dev
 RUN python -c "SentenceTransformer('BAAI/bge-small-en-v1.5')"  # cache the model
-RUN tm ingest --source local                                    # build the Chroma index
+RUN --mount=type=secret,id=github_token tm ingest --source all  # build the Chroma index (private corpus + public GitHub repos)
 
 # Stage 3: runtime — python:3.11-slim with only deps + index + cache + source
 FROM python:3.11-slim AS runtime
@@ -220,6 +220,8 @@ gh workflow run deploy.yml --ref dev
 ```
 
 The other markdown under `data/samples/` (`background.md`, `experience/*`, `projects/*`) is Phase 1 dev-fixture content — committed to git, but only ingested in **local dev and eval runs** (when `SAMPLES_DIR` is at its default `data/samples`). The production Docker build pins `SAMPLES_DIR=data/samples/private` so those fixtures don't end up in the deployed Chroma index. The eval golden set's `expected_sources` are written against the fixture file names (`experience/virtonomy.md`, `projects/querypal.md`, etc.), so keeping them locally is what lets the historic eval baseline still run; a future task is to rewrite the eval against the real private-corpus source names and retire the fixtures.
+
+Alongside the private corpus, the production build also pulls READMEs and `docs/*.md` from every public repo owned by `$GITHUB_USER` (default `ChingEnLin`), minus `$GITHUB_DENYLIST`. The PAT is mounted as a BuildKit secret (`--secret id=github_token,env=GITHUB_TOKEN` in the CI build step, sourced from the `GH_INGEST_TOKEN` repo secret) so it never lands in any image layer or build history. If no token is mounted (e.g. a local `docker build .` without `--secret`), the build silently falls back to `--source local` and only the private corpus is indexed.
 
 GCS cost at this scale: a few MB of markdown, well inside the 5GB free tier. Realistic cost: **$0/mo**.
 
