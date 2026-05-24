@@ -82,11 +82,19 @@ jobs:
 
       # Two tags: commit SHA (immutable, what we deploy) and "latest"
       # (convenience for manual rollback / inspection).
+      # GH_INGEST_TOKEN is a fine-grained PAT with `public_repo` scope, stored
+      # as a repo secret. Passed to the build as a BuildKit secret so it never
+      # lands in any image layer or build history. Used by the GitHub repo
+      # loader (see Dockerfile builder stage) to fetch READMEs + docs/*.md
+      # for every public repo of $GITHUB_USER, minus $GITHUB_DENYLIST.
       - name: Build and push image
         env:
           IMAGE: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}
+          GITHUB_TOKEN: ${{ secrets.GH_INGEST_TOKEN }}
+          DOCKER_BUILDKIT: "1"
         run: |
           docker build \
+            --secret id=github_token,env=GITHUB_TOKEN \
             --tag "$IMAGE:${{ github.sha }}" \
             --tag "$IMAGE:latest" \
             .

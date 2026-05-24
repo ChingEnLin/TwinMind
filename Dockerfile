@@ -56,14 +56,28 @@ ENV HF_HOME=/app/.hf-cache \
     SENTENCE_TRANSFORMERS_HOME=/app/.hf-cache
 RUN .venv/bin/python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-en-v1.5')"
 
-# Build the Chroma index. Production ingests only data/samples/private/
-# (the GCS-synced authoritative corpus); the legacy public stubs under
-# data/samples/{background.md, experience/, projects/} stay in the build
-# context but are skipped here. Local dev + eval still default to the
-# full data/samples/ tree because the eval golden set's expected_sources
-# are written against those names — diverging deploy and eval is the
-# accepted trade until the eval is rewritten against the real corpus.
-RUN SAMPLES_DIR=data/samples/private .venv/bin/tm ingest --source local
+# Build the Chroma index. Production ingests two sources:
+#   1. data/samples/private/ — the GCS-synced authoritative private corpus
+#      (the legacy public stubs under data/samples/{background.md,
+#      experience/, projects/} stay in the build context but are skipped).
+#   2. GitHub public repos for $GITHUB_USER (READMEs + docs/*.md), minus
+#      the configured denylist.
+#
+# The GitHub PAT is mounted as a BuildKit secret so it never lands in any
+# image layer or build history. Required scope: `public_repo`. Pass it at
+# build time via `docker build --secret id=github_token,env=GITHUB_TOKEN`.
+#
+# Local dev + eval still default to the full data/samples/ tree because
+# the eval golden set's expected_sources are written against those names —
+# diverging deploy and eval is the accepted trade until the eval is
+# rewritten against the real corpus.
+RUN --mount=type=secret,id=github_token,required=false \
+    set -eu; \
+    export GITHUB_TOKEN="$(cat /run/secrets/github_token 2>/dev/null || true)"; \
+    export SAMPLES_DIR=data/samples/private; \
+    if [ -n "$GITHUB_TOKEN" ]; then SOURCE=all; else SOURCE=local; fi; \
+    echo "ingesting with --source $SOURCE"; \
+    .venv/bin/tm ingest --source "$SOURCE"
 
 # ---------------------------------------------------------------- runtime ---
 FROM python:${PYTHON_VERSION}-slim AS runtime
