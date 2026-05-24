@@ -19,6 +19,11 @@ ARG UV_VERSION=0.5.11
 # ---------------------------------------------------------------- builder ---
 FROM python:${PYTHON_VERSION}-slim AS builder
 
+# Global ARGs need to be redeclared inside each stage that uses them in
+# substitution targets (FROM, COPY --from, etc.). Without this, BuildKit's
+# parser fails with "invalid reference format" on the COPY below.
+ARG UV_VERSION
+
 # uv is installed as a single static binary; faster than `pip install uv` and
 # avoids polluting the runtime image with build tooling.
 COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /usr/local/bin/uv
