@@ -1,0 +1,14 @@
+# Local state — switch to GCS backend if collaborating
+.terraform/
+.terraform.lock.hcl
+*.tfstate
+*.tfstate.*
+*.tfstate.backup
+
+# Filled-in tfvars contain secrets
+terraform.tfvars
+*.auto.tfvars
+*.auto.tfvars.json
+
+# Plan output
+*.tfplan

@@ -1,0 +1,30 @@
+.git
+.github
+.venv
+.mypy_cache
+.ruff_cache
+.pytest_cache
+__pycache__
+*.pyc
+*.pyo
+*.egg-info
+build
+dist
+
+# Local-only artifacts
+docs
+notes
+.claude
+.vscode
+.DS_Store
+
+# Pre-built indexes from local dev — let the builder rebuild fresh in the image.
+data/processed
+data/raw
+
+# Eval reports and any baseline scratch files
+eval_baseline*.md
+eval_report*.md
+
+# Local environment
+.env

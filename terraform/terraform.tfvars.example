@@ -1,0 +1,16 @@
+# Copy to terraform.tfvars (gitignored) and fill in.
+#
+# Sensitive values can also be set via env vars: TF_VAR_anthropic_api_key, etc.
+
+project_id        = "your-gcp-project-id"
+region            = "us-central1"
+allowed_origin    = "https://chingenlin.com"
+
+anthropic_api_key = "sk-ant-..."
+api_key           = "generate-a-long-random-string-for-the-bearer-token"
+github_token      = ""
+
+# Cost / scale knobs
+daily_budget_usd  = 0.50
+min_instances     = 0
+max_instances     = 3
