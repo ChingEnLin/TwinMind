@@ -2,6 +2,60 @@
 
 How TwinMind is hosted, how it gets there, how to operate it, and what it costs.
 
+## System architecture
+
+```mermaid
+flowchart LR
+    subgraph User["User's browser"]
+        BR["Browser"]
+    end
+
+    subgraph Vercel["Vercel (chingenlin/portfolio)"]
+        SPA["Vite + React<br/>SPA"]
+        EDGE["Edge Function<br/>api/chat.ts<br/>(attaches bearer)"]
+    end
+
+    subgraph GCP["Google Cloud (project: twinmind-497309)"]
+        CR["Cloud Run<br/>twinmind service<br/>(FastAPI + SSE)"]
+        AR[("Artifact Registry<br/>Docker images")]
+        SM[("Secret Manager<br/>API_KEY,<br/>ANTHROPIC_API_KEY,<br/>GITHUB_TOKEN")]
+        GCS[("GCS bucket<br/>twinmind-…-content<br/>(private markdown)")]
+    end
+
+    subgraph CI["GitHub Actions"]
+        GHA["deploy.yml<br/>WIF auth"]
+    end
+
+    subgraph Anthropic["Anthropic"]
+        AN["Haiku 4.5<br/>(answer + rerank +<br/>eval judge)"]
+    end
+
+    LOC[("Local laptop<br/>data/samples/private/")]
+
+    BR -->|"fetch /api/chat<br/>(same-origin)"| SPA
+    SPA --> EDGE
+    EDGE -->|"POST /v1/chat<br/>+ Bearer"| CR
+    CR -->|"mounted as<br/>env vars"| SM
+    CR -->|"answer + rerank<br/>(prompt caching)"| AN
+
+    LOC -.->|"gcloud storage<br/>rsync"| GCS
+    GCS -.->|"rsync at<br/>build time"| GHA
+    GHA -.->|"docker push"| AR
+    GHA -.->|"gcloud run deploy<br/>(WIF impersonation)"| CR
+    AR -.->|"image pull on<br/>cold start"| CR
+
+    classDef gcp fill:#e8f0fe,stroke:#1a73e8
+    classDef vercel fill:#f5f5f5,stroke:#000
+    classDef anthropic fill:#fdf2e9,stroke:#d97706
+    classDef ci fill:#f0fdf4,stroke:#16a34a
+    class GCP,CR,AR,SM,GCS gcp
+    class Vercel,SPA,EDGE vercel
+    class Anthropic,AN anthropic
+    class CI,GHA ci
+```
+
+Solid arrows are the **runtime request path** (one user message → response). Dashed arrows are the **deploy / content-update path** (happens at deploy time, not per request).
+
 ## Stack
 
 | Layer | Choice |

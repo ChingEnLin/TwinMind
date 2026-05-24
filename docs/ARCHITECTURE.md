@@ -4,28 +4,32 @@ This document describes the shipped system, not a planning artifact. For the rea
 
 ## The pipeline at a glance
 
-```
-            ┌─────────────────────────────────────────────────────────────────┐
-            │                       ingestion time (offline, in CI)          │
-            │                                                                  │
-            │   data/samples ──▶ loaders ──▶ chunker ──▶ embedder ──▶ Chroma  │
-            │   (markdown)       (local +    (token-     (BGE-small)  (on-    │
-            │                    GitHub)     aware)                   disk)   │
-            └─────────────────────────────────────────────────────────────────┘
+### Ingestion (offline, runs at image build time in CI)
 
-            ┌─────────────────────────────────────────────────────────────────┐
-            │                       query time (online, per request)         │
-            │                                                                  │
-            │   HTTP POST ──▶ FastAPI ──▶ retrieve ──▶ rerank ──▶ generate ──▶ SSE
-            │   /v1/chat      (auth +     (vector +   (Haiku    (Haiku +     │
-            │                  rate)      BM25 RRF,   listwise) cached       │
-            │                              top 20)               system)     │
-            │                                                                  │
-            │                                     │                            │
-            │                              enforce grounding ─▶ refuse if no   │
-            │                              (post-stream)         supporting    │
-            │                                                    citation     │
-            └─────────────────────────────────────────────────────────────────┘
+```mermaid
+flowchart LR
+    A["data/samples/<br/>(committed public<br/>markdown)"] --> L1["local_docs<br/>loader"]
+    B["GCS bucket<br/>twinmind-…-content<br/>(private subtree)"] -. "rsync<br/>at CI time" .-> A
+    C["public GitHub repos<br/>(ChingEnLin/…)"] --> L2["github_repos<br/>loader"]
+    L1 --> CH["chunker<br/>(token-aware,<br/>~400 tok/chunk)"]
+    L2 --> CH
+    CH --> EM["embedder<br/>(BGE-small,<br/>384-dim)"]
+    EM --> VS[("Chroma<br/>persistent<br/>on disk")]
+```
+
+Three data sources, two loaders, one chunker, one embedder, one persistent vector store. Built once per image at CI time; the resulting Chroma index ships *inside* the Docker image so the runtime path doesn't pay for re-ingest. See `DEPLOYMENT.md` for the bucket-sync mechanics — the gist is that `data/samples/private/` is gitignored and the GCS bucket is its source of truth.
+
+### Query time (online, per request)
+
+```mermaid
+flowchart LR
+    R["POST /v1/chat<br/>(SSE)"] --> MW["middleware:<br/>auth + rate-limit<br/>+ budget check"]
+    MW --> HR["HybridRetriever<br/>(vector + BM25,<br/>fused via RRF)"]
+    HR -->|top 20| RR["RerankedRetriever<br/>+ ClaudeReranker<br/>(listwise, 1 API call)"]
+    RR -->|top 4| GEN["AnthropicLLM<br/>streaming<br/>(Haiku 4.5 +<br/>cached system prompt)"]
+    GEN --> EG["enforce_grounding<br/>(post-stream)"]
+    EG -->|valid citation| OUT["SSE: meta → token* →<br/>citation* → done"]
+    EG -->|no/invented citation| REF["force refusal<br/>SSE: error or<br/>refused done"]
 ```
 
 Every layer has the same shape: a `base.py` defining a Protocol, a `factory.py` that selects an adapter by name, and an `adapters/` directory with concrete implementations. Switching providers means writing an adapter and adding a branch to the factory — no caller changes.
