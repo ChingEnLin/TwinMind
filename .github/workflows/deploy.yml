@@ -74,7 +74,11 @@ jobs:
       - name: Sync private content from GCS
         run: |
           mkdir -p data/samples/private
-          gcloud storage rsync -r "$CONTENT_BUCKET" data/samples/private
+          # --exclude='\.DS_Store$' strips macOS metadata that local uploads
+          # often pick up; without it the markdown chunker chokes on binary
+          # blobs.
+          gcloud storage rsync -r --exclude='\.DS_Store$' \
+            "$CONTENT_BUCKET" data/samples/private
 
       # Two tags: commit SHA (immutable, what we deploy) and "latest"
       # (convenience for manual rollback / inspection).
