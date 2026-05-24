@@ -29,6 +29,11 @@ env:
   GCP_PROJECT_ID: twinmind-497309
   GCP_REGION: us-central1
   SERVICE_NAME: twinmind
+  # GCS bucket holding the source documents. The workflow syncs this into
+  # data/samples/ before `docker build`, so the image always contains the
+  # current authoritative content (including private/* that's gitignored
+  # and never reaches the checkout).
+  CONTENT_BUCKET: gs://twinmind-497309-twinmind-content
 
 jobs:
   build-and-deploy:
@@ -56,6 +61,18 @@ jobs:
 
       - name: Configure Docker to push to Artifact Registry
         run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      # Pull authoritative content from the GCS bucket into the build context.
+      # The bucket holds the full data/samples/ tree (public + private). The
+      # checkout above only has public content (private/ is gitignored), so
+      # this step is what makes CI builds equivalent to local builds.
+      #
+      # Update flow for content: `gcloud storage rsync -r data/samples/ $CONTENT_BUCKET`
+      # then trigger this workflow (push to dev, or `workflow_dispatch`).
+      - name: Sync content from GCS
+        run: |
+          mkdir -p data/samples
+          gcloud storage rsync -r "$CONTENT_BUCKET" data/samples
 
       # Two tags: commit SHA (immutable, what we deploy) and "latest"
       # (convenience for manual rollback / inspection).
