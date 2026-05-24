@@ -101,11 +101,18 @@ jobs:
       - name: Deploy new Cloud Run revision
         env:
           IMAGE: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}
+          # Explicit runtime SA: on first creation, gcloud run deploy defaults
+          # to the project's compute SA, which our deploy SA doesn't have
+          # actAs on (and shouldn't — least privilege). Passing this matches
+          # the SA Terraform configured on the service spec and works for
+          # both first creation and subsequent revisions.
+          RUNTIME_SA: twinmind-runtime@${{ env.GCP_PROJECT_ID }}.iam.gserviceaccount.com
         run: |
           gcloud run deploy "$SERVICE_NAME" \
             --image="$IMAGE:${{ github.sha }}" \
             --region="$GCP_REGION" \
             --project="$GCP_PROJECT_ID" \
+            --service-account="$RUNTIME_SA" \
             --platform=managed \
             --quiet
 
