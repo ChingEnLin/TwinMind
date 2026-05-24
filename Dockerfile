@@ -16,17 +16,19 @@
 ARG PYTHON_VERSION=3.11
 ARG UV_VERSION=0.5.11
 
+# --------------------------------------------------------------- uv stage ---
+# Alias the uv distroless image as its own stage. BuildKit substitutes ARG
+# values in FROM directives but NOT in `COPY --from=<image>:<tag>` references
+# — so we need this indirection. The COPY in the builder stage then references
+# the stage name (`uv-bin`), which is always static.
+FROM ghcr.io/astral-sh/uv:${UV_VERSION} AS uv-bin
+
 # ---------------------------------------------------------------- builder ---
 FROM python:${PYTHON_VERSION}-slim AS builder
 
-# Global ARGs need to be redeclared inside each stage that uses them in
-# substitution targets (FROM, COPY --from, etc.). Without this, BuildKit's
-# parser fails with "invalid reference format" on the COPY below.
-ARG UV_VERSION
-
 # uv is installed as a single static binary; faster than `pip install uv` and
 # avoids polluting the runtime image with build tooling.
-COPY --from=ghcr.io/astral-sh/uv:${UV_VERSION} /uv /usr/local/bin/uv
+COPY --from=uv-bin /uv /usr/local/bin/uv
 
 ENV UV_LINK_MODE=copy \
     UV_PYTHON_PREFERENCE=only-system \
