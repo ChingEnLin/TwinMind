@@ -4,9 +4,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project
 
-TwinMind is a "Digital Twin" RAG chatbot backend: strict grounding (refuses out-of-corpus), citation-required answers, pluggable provider adapters, and cost discipline. Phase 1 ships an in-memory vector store, a deterministic hash-based stub embedder, and Anthropic Haiku 4.5 (`claude-haiku-4-5-20251001`) with prompt caching.
+TwinMind is a "Digital Twin" RAG chatbot backend: strict grounding (refuses out-of-corpus), citation-required answers, pluggable provider adapters, and cost discipline. Production stack: Anthropic Haiku 4.5 with prompt caching, BGE-small embeddings, Chroma persistent store, hybrid retrieval (vector + BM25 via RRF) followed by a single-call Haiku listwise reranker.
 
-Authoritative design lives in `docs/` (HANDOFF.md, ARCHITECTURE.md, API_CONTRACT.md, TOKEN_BUDGET.md). `docs/` is gitignored — treat it as local reference only and do not `git add` it.
+Reference docs live in `docs/` (ARCHITECTURE.md, API.md, EVAL.md, DEPLOYMENT.md, DECISIONS.md). These are committed and meant to be readable on GitHub. The `notes/` directory holds chronological learning notes — still gitignored, local reference only.
 
 GitHub default branch is `dev` (not `main`). Push to `origin dev`.
 

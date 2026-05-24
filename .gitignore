@@ -15,7 +15,6 @@ eval_baseline*.md
 eval_report*.md
 .DS_Store
 
-docs/
 .claude/
 .vscode/
 data/samples/private/
