@@ -16,11 +16,17 @@ class Settings(BaseSettings):
     ALLOWED_ORIGIN: str = "http://localhost:5173"
     API_KEY: str = "dev-key"
 
-    # Ingestion source. data/samples/private/ is the authoritative corpus
-    # (synced from the GCS bucket at CI time). The other subdirs of
-    # data/samples/ (background.md, experience/, projects/) are legacy/dev
-    # fixtures and intentionally NOT walked by the loader.
-    SAMPLES_DIR: str = "data/samples/private"
+    # Ingestion root for the local_docs loader.
+    #
+    # Default (`data/samples`) walks the full committed sample tree —
+    # public dev fixtures (background.md, experience/, projects/) PLUS the
+    # gitignored private subtree. Used by local dev and the eval harness
+    # (the golden set's expected_sources are written against these names).
+    #
+    # Production overrides this in the Dockerfile builder stage to
+    # `data/samples/private`, so the baked Chroma index in the deployed
+    # image contains ONLY the authoritative GCS-synced private content.
+    SAMPLES_DIR: str = "data/samples"
 
     TOP_K: int = 4
     CHUNK_TARGET_TOKENS: int = 400

@@ -56,9 +56,14 @@ ENV HF_HOME=/app/.hf-cache \
     SENTENCE_TRANSFORMERS_HOME=/app/.hf-cache
 RUN .venv/bin/python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('BAAI/bge-small-en-v1.5')"
 
-# Build the Chroma index from data/samples/. Uses BGE (now cached) for
-# embeddings; no Anthropic call required at this stage.
-RUN .venv/bin/tm ingest --source local
+# Build the Chroma index. Production ingests only data/samples/private/
+# (the GCS-synced authoritative corpus); the legacy public stubs under
+# data/samples/{background.md, experience/, projects/} stay in the build
+# context but are skipped here. Local dev + eval still default to the
+# full data/samples/ tree because the eval golden set's expected_sources
+# are written against those names — diverging deploy and eval is the
+# accepted trade until the eval is rewritten against the real corpus.
+RUN SAMPLES_DIR=data/samples/private .venv/bin/tm ingest --source local
 
 # ---------------------------------------------------------------- runtime ---
 FROM python:${PYTHON_VERSION}-slim AS runtime

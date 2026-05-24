@@ -8,8 +8,9 @@ This document describes the shipped system, not a planning artifact. For the rea
 
 ```mermaid
 flowchart LR
-    B["GCS bucket<br/>twinmind-…-content<br/>(authoritative corpus)"] -. "rsync<br/>at CI time" .-> A["data/samples/private/<br/>(gitignored,<br/>SAMPLES_DIR target)"]
-    A --> L1["local_docs<br/>loader"]
+    B["GCS bucket<br/>twinmind-…-content<br/>(authoritative corpus)"] -. "rsync<br/>at CI time" .-> A["data/samples/private/<br/>(gitignored)"]
+    A --> L1["local_docs<br/>loader<br/>(walks SAMPLES_DIR)"]
+    D["data/samples/<br/>{background.md,<br/>experience/, projects/}<br/>(dev fixtures, committed)"] -. "only walked when<br/>SAMPLES_DIR=data/samples<br/>(local dev + eval)" .-> L1
     C["public GitHub repos<br/>(ChingEnLin/…)"] --> L2["github_repos<br/>loader"]
     L1 --> CH["chunker<br/>(token-aware,<br/>~400 tok/chunk)"]
     L2 --> CH
@@ -17,7 +18,7 @@ flowchart LR
     EM --> VS[("Chroma<br/>persistent<br/>on disk")]
 ```
 
-Two production data sources, two loaders, one chunker, one embedder, one persistent vector store. The `local_docs` loader walks `SAMPLES_DIR` (default `data/samples/private/`) — *only* that subtree, not the legacy `data/samples/background.md`, `experience/`, or `projects/` files which were Phase 1 dev fixtures. The GCS bucket is the authoritative source for the private subtree; CI rsyncs it into the build context before `docker build`. Built once per image at CI time; the resulting Chroma index ships *inside* the Docker image so the runtime path doesn't pay for re-ingest. See `DEPLOYMENT.md` for the bucket-sync mechanics.
+The `local_docs` loader walks `SAMPLES_DIR` recursively. **Production** (the Dockerfile builder stage) sets `SAMPLES_DIR=data/samples/private` so the baked Chroma index contains only the GCS-synced authoritative content. **Local dev and eval** keep the default `data/samples/` so the Phase 1 dev fixtures (`background.md`, `experience/*`, `projects/*`) are still indexed — the eval golden set's `expected_sources` are written against those names. This divergence is intentional: the eval is the historic baseline reference, production is the real corpus. A future task is to rewrite the eval against the private corpus's actual source names; until then, the split keeps both useful. The GCS bucket is the authoritative source for the private subtree; CI rsyncs it into the build context before `docker build`. The Chroma index is built once per image at CI time and ships *inside* the Docker image so the runtime path doesn't pay for re-ingest. See `DEPLOYMENT.md` for the bucket-sync mechanics.
 
 ### Query time (online, per request)
 

@@ -140,7 +140,7 @@ The deploy workflow steps:
 
 1. `actions/checkout@v4` — pull the repo (only public content; private/ is gitignored).
 2. `google-github-actions/auth@v2` — exchange GitHub OIDC for an access token impersonating `twinmind-deploy@`. No JSON keys in repo secrets.
-3. `gcloud storage rsync` — pull the authoritative corpus from the content bucket into `data/samples/private/`. After this step the build context has the same content a local build would see. (`SAMPLES_DIR` defaults to `data/samples/private/`; only that subtree gets ingested. Other files committed under `data/samples/` are legacy/dev fixtures and are ignored by the loader.)
+3. `gcloud storage rsync` — pull the authoritative corpus from the content bucket into `data/samples/private/`. After this step the build context has the same content a local build would see.
 4. `docker build && docker push` — image tagged with both the commit SHA (immutable) and `:latest` (convenience).
 5. `gcloud run deploy` — create a new revision pointing at the SHA-tagged image, with `--service-account=twinmind-runtime@...` so we don't trip the default-compute-SA actAs check.
 
@@ -203,7 +203,7 @@ Final image size: ~1.5GB (mostly torch + sentence-transformers + the BGE weights
 
 ## Content source of truth
 
-`data/samples/private/` is the **authoritative corpus** — the only directory the ingestion loader walks (per `SAMPLES_DIR` in `config.py`). It's gitignored because it contains personal details we don't want in the public repo. The single source of truth for it is:
+`data/samples/private/` is the **authoritative corpus** that the production image ingests. The Dockerfile's builder stage sets `SAMPLES_DIR=data/samples/private` for the `tm ingest` step, so only this subtree ends up in the baked Chroma index. It's gitignored because it contains personal details we don't want in the public repo. The single source of truth for it is:
 
 ```
 gs://twinmind-497309-twinmind-content
@@ -219,7 +219,7 @@ gcloud storage rsync -r data/samples/private/ gs://twinmind-497309-twinmind-cont
 gh workflow run deploy.yml --ref dev
 ```
 
-The other markdown under `data/samples/` (`background.md`, `experience/*`, `projects/*`) is Phase 1 dev-fixture leftovers — committed to git but NOT walked by the ingester. Only the GCS-synced `private/` subtree ends up in the Chroma index.
+The other markdown under `data/samples/` (`background.md`, `experience/*`, `projects/*`) is Phase 1 dev-fixture content — committed to git, but only ingested in **local dev and eval runs** (when `SAMPLES_DIR` is at its default `data/samples`). The production Docker build pins `SAMPLES_DIR=data/samples/private` so those fixtures don't end up in the deployed Chroma index. The eval golden set's `expected_sources` are written against the fixture file names (`experience/virtonomy.md`, `projects/querypal.md`, etc.), so keeping them locally is what lets the historic eval baseline still run; a future task is to rewrite the eval against the real private-corpus source names and retire the fixtures.
 
 GCS cost at this scale: a few MB of markdown, well inside the 5GB free tier. Realistic cost: **$0/mo**.
 
