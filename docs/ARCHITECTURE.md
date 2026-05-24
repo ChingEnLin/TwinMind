@@ -8,8 +8,8 @@ This document describes the shipped system, not a planning artifact. For the rea
 
 ```mermaid
 flowchart LR
-    A["data/samples/<br/>(committed public<br/>markdown)"] --> L1["local_docs<br/>loader"]
-    B["GCS bucket<br/>twinmind-…-content<br/>(private subtree)"] -. "rsync<br/>at CI time" .-> A
+    B["GCS bucket<br/>twinmind-…-content<br/>(authoritative corpus)"] -. "rsync<br/>at CI time" .-> A["data/samples/private/<br/>(gitignored,<br/>SAMPLES_DIR target)"]
+    A --> L1["local_docs<br/>loader"]
     C["public GitHub repos<br/>(ChingEnLin/…)"] --> L2["github_repos<br/>loader"]
     L1 --> CH["chunker<br/>(token-aware,<br/>~400 tok/chunk)"]
     L2 --> CH
@@ -17,7 +17,7 @@ flowchart LR
     EM --> VS[("Chroma<br/>persistent<br/>on disk")]
 ```
 
-Three data sources, two loaders, one chunker, one embedder, one persistent vector store. Built once per image at CI time; the resulting Chroma index ships *inside* the Docker image so the runtime path doesn't pay for re-ingest. See `DEPLOYMENT.md` for the bucket-sync mechanics — the gist is that `data/samples/private/` is gitignored and the GCS bucket is its source of truth.
+Two production data sources, two loaders, one chunker, one embedder, one persistent vector store. The `local_docs` loader walks `SAMPLES_DIR` (default `data/samples/private/`) — *only* that subtree, not the legacy `data/samples/background.md`, `experience/`, or `projects/` files which were Phase 1 dev fixtures. The GCS bucket is the authoritative source for the private subtree; CI rsyncs it into the build context before `docker build`. Built once per image at CI time; the resulting Chroma index ships *inside* the Docker image so the runtime path doesn't pay for re-ingest. See `DEPLOYMENT.md` for the bucket-sync mechanics.
 
 ### Query time (online, per request)
 

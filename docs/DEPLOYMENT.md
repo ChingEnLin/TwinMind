@@ -140,7 +140,7 @@ The deploy workflow steps:
 
 1. `actions/checkout@v4` — pull the repo (only public content; private/ is gitignored).
 2. `google-github-actions/auth@v2` — exchange GitHub OIDC for an access token impersonating `twinmind-deploy@`. No JSON keys in repo secrets.
-3. `gcloud storage rsync` — pull the private subtree from the content bucket into `data/samples/private/`. After this step, `data/samples/` is what a local build would see.
+3. `gcloud storage rsync` — pull the authoritative corpus from the content bucket into `data/samples/private/`. After this step the build context has the same content a local build would see. (`SAMPLES_DIR` defaults to `data/samples/private/`; only that subtree gets ingested. Other files committed under `data/samples/` are legacy/dev fixtures and are ignored by the loader.)
 4. `docker build && docker push` — image tagged with both the commit SHA (immutable) and `:latest` (convenience).
 5. `gcloud run deploy` — create a new revision pointing at the SHA-tagged image, with `--service-account=twinmind-runtime@...` so we don't trip the default-compute-SA actAs check.
 
@@ -203,7 +203,7 @@ Final image size: ~1.5GB (mostly torch + sentence-transformers + the BGE weights
 
 ## Content source of truth
 
-`data/samples/private/` is **gitignored** — it contains personal details we don't want in the public repo. The single source of truth for it is:
+`data/samples/private/` is the **authoritative corpus** — the only directory the ingestion loader walks (per `SAMPLES_DIR` in `config.py`). It's gitignored because it contains personal details we don't want in the public repo. The single source of truth for it is:
 
 ```
 gs://twinmind-497309-twinmind-content
@@ -219,7 +219,7 @@ gcloud storage rsync -r data/samples/private/ gs://twinmind-497309-twinmind-cont
 gh workflow run deploy.yml --ref dev
 ```
 
-Public content (`background.md`, `experience/*`, `projects/*`) lives in git and is in the checkout — only the private subtree pulls from GCS.
+The other markdown under `data/samples/` (`background.md`, `experience/*`, `projects/*`) is Phase 1 dev-fixture leftovers — committed to git but NOT walked by the ingester. Only the GCS-synced `private/` subtree ends up in the Chroma index.
 
 GCS cost at this scale: a few MB of markdown, well inside the 5GB free tier. Realistic cost: **$0/mo**.
 

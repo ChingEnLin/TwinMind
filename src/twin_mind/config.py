@@ -16,7 +16,11 @@ class Settings(BaseSettings):
     ALLOWED_ORIGIN: str = "http://localhost:5173"
     API_KEY: str = "dev-key"
 
-    SAMPLES_DIR: str = "data/samples"
+    # Ingestion source. data/samples/private/ is the authoritative corpus
+    # (synced from the GCS bucket at CI time). The other subdirs of
+    # data/samples/ (background.md, experience/, projects/) are legacy/dev
+    # fixtures and intentionally NOT walked by the loader.
+    SAMPLES_DIR: str = "data/samples/private"
 
     TOP_K: int = 4
     CHUNK_TARGET_TOKENS: int = 400
