@@ -1,0 +1,94 @@
+name: deploy
+
+# Push to dev → build container, push to Artifact Registry, deploy a new
+# Cloud Run revision. Workload Identity Federation handles auth (no JSON key
+# in repo secrets).
+#
+# Infra changes (terraform/) are NOT applied here — those are intentionally
+# manual (`terraform plan` then `terraform apply` from your laptop) so that
+# changes to IAM, secrets, and the service shape get a human review.
+
+on:
+  push:
+    branches: [dev]
+    paths-ignore:
+      - 'notes/**'
+      - 'docs/**'
+      - '**.md'
+      - 'terraform/**'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+# A single in-flight deploy at a time; cancel any superseded run on the same
+# branch so a fast push series doesn't deploy stale images.
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GCP_PROJECT_ID: twinmind-497309
+  GCP_REGION: us-central1
+  SERVICE_NAME: twinmind
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    # WIF needs id-token; contents:read is the default but explicit is clearer.
+    permissions:
+      id-token: write
+      contents: read
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # WIF: exchange GitHub OIDC token for a short-lived GCP access token
+      # scoped to the deploy service account. No service-account JSON anywhere.
+      - name: Authenticate to GCP
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.GCP_WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_DEPLOY_SA }}
+
+      - name: Set up gcloud
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker to push to Artifact Registry
+        run: gcloud auth configure-docker ${{ env.GCP_REGION }}-docker.pkg.dev --quiet
+
+      # Two tags: commit SHA (immutable, what we deploy) and "latest"
+      # (convenience for manual rollback / inspection).
+      - name: Build and push image
+        env:
+          IMAGE: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}
+        run: |
+          docker build \
+            --tag "$IMAGE:${{ github.sha }}" \
+            --tag "$IMAGE:latest" \
+            .
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      # `gcloud run deploy` rather than `terraform apply` per push:
+      #   - faster (no plan/refresh round-trip)
+      #   - infra-shape changes still go through terraform
+      #   - if you ever need to re-sync terraform state to current revision,
+      #     just bump var.image_tag and re-apply
+      - name: Deploy new Cloud Run revision
+        env:
+          IMAGE: ${{ env.GCP_REGION }}-docker.pkg.dev/${{ env.GCP_PROJECT_ID }}/${{ env.SERVICE_NAME }}/${{ env.SERVICE_NAME }}
+        run: |
+          gcloud run deploy "$SERVICE_NAME" \
+            --image="$IMAGE:${{ github.sha }}" \
+            --region="$GCP_REGION" \
+            --project="$GCP_PROJECT_ID" \
+            --platform=managed \
+            --quiet
+
+      - name: Show deployed URL
+        run: |
+          gcloud run services describe "$SERVICE_NAME" \
+            --region="$GCP_REGION" \
+            --project="$GCP_PROJECT_ID" \
+            --format="value(status.url)"

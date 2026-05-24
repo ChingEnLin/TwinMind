@@ -40,9 +40,14 @@ rate_limiter = RateLimiter()
 
 
 def install_middleware(app: FastAPI) -> None:
+    # ALLOWED_ORIGIN may be a single URL or a comma-separated list. The list
+    # form lets one deploy serve both the production portfolio and Vercel
+    # preview deployments (which get rotating URLs) without redeploying the
+    # backend.
+    origins = [o.strip() for o in settings.ALLOWED_ORIGIN.split(",") if o.strip()]
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=[settings.ALLOWED_ORIGIN],
+        allow_origins=origins,
         allow_methods=["GET", "POST", "OPTIONS"],
         allow_headers=["*"],
         allow_credentials=False,
