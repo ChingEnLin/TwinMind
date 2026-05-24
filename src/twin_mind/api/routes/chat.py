@@ -104,7 +104,7 @@ async def _stream(req: ChatRequest, request_id: str) -> AsyncIterator[dict]:
         )
         return
 
-    final_answer, refused, refusal_reason = enforce_grounding(full)
+    final_answer, refused, refusal_reason = enforce_grounding(full, retrieved)
     if refused and final_answer != full:
         # The model didn't cite anything — surface the forced-refusal text as a final token
         # so the widget sees the corrected message.

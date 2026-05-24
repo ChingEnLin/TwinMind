@@ -51,6 +51,39 @@ def test_enforce_grounding_plain_out_of_corpus_not_misclassified():
     assert reason == "out_of_corpus"
 
 
+def test_enforce_grounding_rejects_invented_chunk_id_when_retrieved_passed():
+    chunks = [
+        ScoredChunk(
+            Chunk(id="real#1", doc_id="d", source=Source(name="real.md"), text="t"),
+            0.9,
+        )
+    ]
+    answer = "Ching-En works at Google [invented_id_999]."
+    final, refused, reason = enforce_grounding(answer, chunks)
+    assert refused is True
+    assert reason == "out_of_corpus"
+    assert "aren't in the retrieved context" in final
+
+
+def test_enforce_grounding_passes_when_at_least_one_citation_resolves():
+    chunks = [
+        ScoredChunk(
+            Chunk(id="real#1", doc_id="d", source=Source(name="real.md"), text="t"),
+            0.9,
+        )
+    ]
+    answer = "Real claim [real#1] and a bogus tag [invented#2]."
+    final, refused, _ = enforce_grounding(answer, chunks)
+    assert refused is False
+    assert final == answer
+
+
+def test_enforce_grounding_without_retrieved_keeps_old_behavior():
+    answer = "Some claim [anything_goes_here]."
+    _, refused, _ = enforce_grounding(answer)
+    assert refused is False
+
+
 def test_build_citations_resolves_chunks():
     chunks = [
         ScoredChunk(

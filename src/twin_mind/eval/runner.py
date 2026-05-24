@@ -79,7 +79,7 @@ async def run_case(state_obj: AppState, case: EvalCase) -> EvalResult:
         if ev.kind == "token":
             full += ev.text
 
-    final, refused, refusal_reason = enforce_grounding(full)
+    final, refused, refusal_reason = enforce_grounding(full, retrieved)
     citations = [c.id for c in build_citations(final, retrieved)]
 
     if case.should_refuse:
