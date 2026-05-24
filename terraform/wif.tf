@@ -66,11 +66,28 @@ resource "google_service_account" "deploy" {
 }
 
 # --- Bind the WIF pool to the deploy SA ------------------------------------
-# GitHub Actions running on this repo can impersonate the deploy SA via OIDC.
-resource "google_service_account_iam_member" "wif_deploy_binding" {
+# Two role grants are needed:
+#   - workloadIdentityUser: lets the WIF principal mint OIDC ID tokens scoped
+#     to the deploy SA (the basic WIF handshake).
+#   - serviceAccountTokenCreator: lets the WIF principal call
+#     iam.serviceAccounts.getAccessToken on the deploy SA so that subprocess
+#     CLIs (`gcloud storage`, `docker push` via gcloud creds, etc.) can
+#     impersonate it for normal API calls. Without this, OIDC handshake
+#     succeeds but actual GCP API calls fail with PERMISSION_DENIED.
+locals {
+  github_principal_set = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repository}"
+}
+
+resource "google_service_account_iam_member" "wif_deploy_oidc" {
   service_account_id = google_service_account.deploy.name
   role               = "roles/iam.workloadIdentityUser"
-  member             = "principalSet://iam.googleapis.com/${google_iam_workload_identity_pool.github.name}/attribute.repository/${var.github_repository}"
+  member             = local.github_principal_set
+}
+
+resource "google_service_account_iam_member" "wif_deploy_token_creator" {
+  service_account_id = google_service_account.deploy.name
+  role               = "roles/iam.serviceAccountTokenCreator"
+  member             = local.github_principal_set
 }
 
 # --- Roles for the deploy SA -----------------------------------------------
